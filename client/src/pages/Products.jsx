@@ -1,6 +1,5 @@
 
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search, SlidersHorizontal, Star, Heart, ShoppingCart, X, Grid2X2, List, Check } from "lucide-react";
 import { useShop } from "../context/ShopContext";
@@ -36,7 +35,13 @@ function Products() {
         const fetchProducts = async () => {
             try {
                 const response = await fetch(`${API_URL}/api/products`);
-                setProducts(response.data.products || []);
+
+                if (!response.ok) {
+                    throw new Error("Failed to fetch products");
+                }
+
+                const data = await response.json();
+                setProducts(data.products || []);
             } catch (error) {
                 setError("Failed to load products");
                 console.log(error.message);
