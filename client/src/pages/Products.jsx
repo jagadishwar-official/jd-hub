@@ -4,6 +4,7 @@ import axios from "axios";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search, SlidersHorizontal, Star, Heart, ShoppingCart, X, Grid2X2, List, Check } from "lucide-react";
 import { useShop } from "../context/ShopContext";
+import API_URL from "../config/api";
 
 function Products() {
     const [products, setProducts] = useState([]);
@@ -34,7 +35,7 @@ function Products() {
     useEffect(() => {
         const fetchProducts = async () => {
             try {
-                const response = await axios.get("http://localhost:5000/api/products");
+                const response = await fetch(`${API_URL}/api/products`);
                 setProducts(response.data.products || []);
             } catch (error) {
                 setError("Failed to load products");

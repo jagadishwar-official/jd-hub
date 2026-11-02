@@ -1,7 +1,9 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { auth } from "../../config/firebase";
+import API_URL from "../../config/api";
 
 function SignUp() {
   const [name, setName] = useState("");
@@ -22,14 +24,13 @@ function SignUp() {
 
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-
       await updateProfile(userCredential.user, {
         displayName: name
       });
 
       const token = await userCredential.user.getIdToken();
 
-      const response = await fetch("http://localhost:5000/api/users/register", {
+      const response = await fetch(`${API_URL}/api/users/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -46,7 +47,6 @@ function SignUp() {
 
       alert("Account created successfully!");
       navigate("/");
-
     } catch (error) {
       alert(error.message);
     }
@@ -55,7 +55,6 @@ function SignUp() {
   return (
     <div className="min-h-screen bg-blue-50 px-4 py-8 flex items-center justify-center">
       <div className="w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden grid md:grid-cols-2">
-
         <div className="relative overflow-hidden bg-gradient-to-br from-blue-950 via-blue-800 to-blue-600 p-8 sm:p-12 text-white flex flex-col justify-between">
           <div className="absolute -right-16 top-24 h-64 w-64 rounded-full border-[35px] border-white/10"></div>
           <div className="absolute -bottom-20 -left-16 h-64 w-64 rounded-full bg-yellow-400"></div>
@@ -133,7 +132,6 @@ function SignUp() {
             <p className="mt-6 text-center text-sm text-gray-500">Already have an account? <a href="/login" className="font-bold text-blue-700 hover:underline">Sign in</a></p>
           </form>
         </div>
-
       </div>
     </div>
   );

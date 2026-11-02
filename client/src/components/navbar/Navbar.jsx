@@ -5,8 +5,9 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../../config/firebase";
 import axios from "axios";
 import { Search, UserRound, Heart, ShoppingCart, Menu, ChevronDown, Smartphone, Shirt, Laptop, House, Sparkles, Gamepad2, Dumbbell, BookOpen, ShoppingBasket, Tag, Package, Bell, Headset, LogOut } from "lucide-react";
+import API_URL from "../../config/api";
 
-function Navbar({ searchText = "", setSearchText = () => {} }) {
+function Navbar({ searchText = "", setSearchText = () => { } }) {
     const [open, setOpen] = useState(false);
     const [accountOpen, setAccountOpen] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -41,7 +42,7 @@ function Navbar({ searchText = "", setSearchText = () => {} }) {
             if (user) {
                 const token = await user.getIdToken();
 
-                await axios.post("http://localhost:5000/api/users/logout", {}, {
+                await axios.post(`${API_URL}/api/users/logout`, {}, {
                     headers: {
                         Authorization: "Bearer " + token
                     }
@@ -49,7 +50,7 @@ function Navbar({ searchText = "", setSearchText = () => {} }) {
             }
         } catch (error) {
             console.log("Logout history error:", error.message);
-        }
+        }1
 
         try {
             await signOut(auth);

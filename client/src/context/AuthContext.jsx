@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../config/firebase";
+import API_URL from "../config/api";
 
 const AuthContext = createContext();
 
@@ -20,7 +21,7 @@ export function AuthProvider({ children }) {
                 try {
                     const token = await currentUser.getIdToken();
 
-                    const response = await fetch("http://localhost:5000/api/users/profile", {
+                    const response = await fetch(`${API_URL}/api/users/profile`, {
                         headers: {
                             Authorization: `Bearer ${token}`
                         }

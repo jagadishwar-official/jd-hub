@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useShop } from "../context/ShopContext";
 import { MapPin, CreditCard, ShoppingBag, Truck } from "lucide-react";
+import API_URL from "../config/api";
 
 function Checkout() {
     const { cart } = useShop();
@@ -42,7 +43,7 @@ function Checkout() {
 
     async function handleCOD() {
         try {
-            const response = await fetch("http://localhost:5000/api/orders", {
+            const response = await fetch(`${API_URL}/api/orders`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -78,7 +79,7 @@ function Checkout() {
                 return;
             }
 
-            const response = await fetch("http://localhost:5000/api/payment/create-order", {
+            const response = await fetch(`${API_URL}/api/payment/create-order`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ amount: total * 100 })
@@ -99,7 +100,7 @@ function Checkout() {
                 order_id: data.id,
                 handler: async function (payment) {
                     try {
-                        const verifyResponse = await fetch("http://localhost:5000/api/payment/verify", {
+                        const verifyResponse = await fetch(`${API_URL}/api/payment/verify`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({

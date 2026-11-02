@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../config/firebase";
 import axios from "axios";
+import API_URL from "../../config/api";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -18,10 +19,9 @@ function Login() {
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-
       const token = await userCredential.user.getIdToken();
 
-      await axios.post("http://localhost:5000/api/users/login", {}, {
+      await axios.post(`${API_URL}/api/users/login`, {}, {
         headers: {
           Authorization: "Bearer " + token
         }
@@ -29,7 +29,6 @@ function Login() {
 
       alert("Login successful!");
       navigate("/");
-
     } catch (error) {
       alert(error.response?.data?.message || error.message);
     }
@@ -38,7 +37,6 @@ function Login() {
   return (
     <div className="min-h-screen bg-blue-50 px-4 py-8 flex items-center justify-center">
       <div className="w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden grid md:grid-cols-2">
-
         <div className="relative overflow-hidden bg-gradient-to-br from-blue-950 via-blue-800 to-blue-600 p-8 sm:p-12 text-white flex flex-col justify-between">
           <div className="absolute -right-16 top-24 h-64 w-64 rounded-full border-[35px] border-white/10"></div>
           <div className="absolute -bottom-20 -left-16 h-64 w-64 rounded-full bg-yellow-400"></div>
@@ -109,7 +107,6 @@ function Login() {
             <p className="mt-6 text-center text-sm text-gray-500">Don't have an account? <a href="/Signup" className="font-bold text-blue-700 hover:underline">Create account</a></p>
           </form>
         </div>
-
       </div>
     </div>
   );

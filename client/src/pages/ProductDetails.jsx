@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useLocation, Link } from 'react-router-dom'
+import API_URL from "../config/api";
 
 function ProductDetails() {
     const { id } = useParams()
@@ -29,7 +30,7 @@ function ProductDetails() {
 
         const fetchProduct = async () => {
             try {
-                const response = await fetch(`http://localhost:5000/api/products/${id}`)
+                const response = await fetch(`${API_URL}/api/products/${id}`)
                 const data = await response.json()
 
                 if (!response.ok) {
@@ -66,7 +67,6 @@ function ProductDetails() {
                 <Link to="/" className="mb-8 inline-block font-medium text-blue-700 hover:underline">← Back to Home</Link>
 
                 <div className="grid gap-10 rounded-2xl bg-white p-6 shadow-sm md:grid-cols-2 md:p-10">
-
                     {/* Product Image Gallery */}
                     <div>
                         <div className="flex items-center justify-center rounded-xl bg-gray-100 p-5">
