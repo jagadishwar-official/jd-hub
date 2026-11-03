@@ -18,6 +18,9 @@ app.use(cors({
     origin: ["http://localhost:5173", "http://localhost:5174", "https://jd-hub.vercel.app"]
 }));
 
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
 
