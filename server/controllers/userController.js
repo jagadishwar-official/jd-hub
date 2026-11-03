@@ -4,6 +4,7 @@ const LoginHistory = require("../models/LoginHistory");
 // Register User
 const registerUser = async (req, res) => {
     try {
+        console.log("Registration request body:", req.body);
         const { name } = req.body;
         const firebaseUid = req.user.uid;
         const email = req.user.email;
