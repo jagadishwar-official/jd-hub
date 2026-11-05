@@ -8,21 +8,31 @@ dotenv.config();
 const connectDB = require("./config/db");
 const firebaseApp = require("./config/firebase");
 
+const orderRoutes = require("./routes/orderRoutes");
+const cartRoutes = require("./routes/cartRoutes");
 const userRoutes = require("./routes/userRoutes");
 const productRoutes = require("./routes/productRoutes");
+const paymentRoutes = require("./routes/paymentRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(cors({
-    origin: ["http://localhost:5173", "http://localhost:5174", "https://jd-hub.vercel.app"]
+    origin: [
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "https://jd-hub.vercel.app"
+    ]
 }));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use("/api/orders", orderRoutes);
+app.use("/api/cart", cartRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
+app.use("/api/payment", paymentRoutes);
 
 console.log("Firebase Admin Initialized:", !!firebaseApp);
 

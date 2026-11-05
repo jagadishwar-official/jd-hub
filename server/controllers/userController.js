@@ -1,10 +1,11 @@
+
 const User = require("../models/User");
 const LoginHistory = require("../models/LoginHistory");
+const formatDate = require("../utils/formatDate");
 
 // Register User
 const registerUser = async (req, res) => {
     try {
-        console.log("Registration request body:", req.body);
         const { name } = req.body;
         const firebaseUid = req.user.uid;
         const email = req.user.email;
@@ -88,7 +89,11 @@ const loginUser = async (req, res) => {
             success: true,
             message: "Login successful",
             user,
-            loginHistory
+            loginHistory: {
+                ...loginHistory.toObject(),
+                loginAtFormatted: formatDate(loginHistory.loginAt),
+                logoutAtFormatted: null
+            }
         });
     } catch (error) {
         console.log("Login User Error:", error.message);
@@ -132,7 +137,12 @@ const logoutUser = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            message: "Logout successful"
+            message: "Logout successful",
+            loginHistory: {
+                ...loginHistory.toObject(),
+                loginAtFormatted: formatDate(loginHistory.loginAt),
+                logoutAtFormatted: formatDate(loginHistory.logoutAt)
+            }
         });
     } catch (error) {
         console.log("Logout User Error:", error.message);
@@ -190,9 +200,17 @@ const getLoginHistory = async (req, res) => {
             userId: user._id
         }).sort({ loginAt: -1 });
 
+        const formattedLoginHistory = loginHistory.map((history) => ({
+            ...history.toObject(),
+            loginAtFormatted: formatDate(history.loginAt),
+            logoutAtFormatted: history.logoutAt
+                ? formatDate(history.logoutAt)
+                : null
+        }));
+
         res.status(200).json({
             success: true,
-            loginHistory
+            loginHistory: formattedLoginHistory
         });
     } catch (error) {
         console.log("Get Login History Error:", error.message);
