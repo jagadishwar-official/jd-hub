@@ -1,17 +1,24 @@
 
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useShop } from "../context/ShopContext";
-import { MapPin, CreditCard, ShoppingBag, Truck } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { MapPin, CreditCard, ShoppingBag, Truck, CheckCircle } from "lucide-react";
 import API_URL from "../config/api";
 
 function Checkout() {
-    const { cart } = useShop();
+    const { cart, removeOrderedItems } = useShop();
+    const { user } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
+
+    const selectedItems = location.state?.selectedItems || [];
+    const selectedIds = selectedItems.map((item) => item._id);
 
     const [paymentMethod, setPaymentMethod] = useState("COD");
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState("");
+    const [orderPlaced, setOrderPlaced] = useState(false);
 
     const [formData, setFormData] = useState({
         name: "",
@@ -23,15 +30,23 @@ function Checkout() {
         pincode: ""
     });
 
-    const subtotal = cart.reduce((total, item) => total + item.price * item.quantity, 0);
+    const subtotal = selectedItems.reduce((total, item) => {
+        return total + item.price * item.quantity;
+    }, 0);
+
     const deliveryCharge = subtotal > 0 ? 50 : 0;
     const total = subtotal + deliveryCharge;
 
-    function handleChange(e) {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-    }
+    const handleChange = (e) => {
+        setFormData({
+            ...formData,
+            [e.target.name]: e.target.value
+        });
+    };
 
     async function loadRazorpay() {
+        if (window.Razorpay) return true;
+
         return new Promise((resolve) => {
             const script = document.createElement("script");
             script.src = "https://checkout.razorpay.com/v1/checkout.js";
@@ -41,32 +56,41 @@ function Checkout() {
         });
     }
 
+    function orderSuccess() {
+        removeOrderedItems(selectedIds);
+        setOrderPlaced(true);
+        setLoading(false);
+    }
+
     async function handleCOD() {
         try {
+            const token = await user.getIdToken();
+
             const response = await fetch(`${API_URL}/api/orders`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
                 body: JSON.stringify({
                     customer: formData,
-                    products: cart,
-                    subtotal,
-                    deliveryCharge,
-                    total,
-                    paymentMethod: "COD",
-                    paymentStatus: "Pending"
+                    items: selectedItems.map((item) => ({
+                        productId: item._id,
+                        quantity: item.quantity
+                    }))
                 })
             });
 
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.message || "Order failed");
+                throw new Error(data.message || "Unable to place order");
             }
 
-            setMessage("Your order has been placed successfully!");
-            navigate("/");
+            orderSuccess();
         } catch (error) {
             setMessage(error.message);
+            setLoading(false);
         }
     }
 
@@ -75,14 +99,24 @@ function Checkout() {
             const loaded = await loadRazorpay();
 
             if (!loaded) {
-                setMessage("Razorpay could not be loaded. Please try again.");
-                return;
+                throw new Error("Razorpay could not be loaded");
             }
+
+            const token = await user.getIdToken();
 
             const response = await fetch(`${API_URL}/api/payment/create-order`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ amount: total * 100 })
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    customer: formData,
+                    items: selectedItems.map((item) => ({
+                        productId: item._id,
+                        quantity: item.quantity
+                    }))
+                })
             });
 
             const data = await response.json();
@@ -93,22 +127,31 @@ function Checkout() {
 
             const options = {
                 key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-                amount: data.amount,
-                currency: data.currency || "INR",
+                amount: data.order.amount,
+                currency: data.order.currency,
                 name: "JD Hub",
                 description: "Order Payment",
-                order_id: data.id,
+                order_id: data.order.id,
+                prefill: {
+                    name: formData.name,
+                    email: formData.email,
+                    contact: formData.phone
+                },
+                theme: {
+                    color: "#2563eb"
+                },
                 handler: async function (payment) {
                     try {
-                        const verifyResponse = await fetch(`${API_URL}/api/payment/verify`, {
+                        const verifyResponse = await fetch(`${API_URL}/api/payment/verify-payment`, {
                             method: "POST",
-                            headers: { "Content-Type": "application/json" },
+                            headers: {
+                                "Content-Type": "application/json",
+                                Authorization: `Bearer ${token}`
+                            },
                             body: JSON.stringify({
                                 razorpay_order_id: payment.razorpay_order_id,
                                 razorpay_payment_id: payment.razorpay_payment_id,
-                                razorpay_signature: payment.razorpay_signature,
-                                customer: formData,
-                                products: cart
+                                razorpay_signature: payment.razorpay_signature
                             })
                         });
 
@@ -118,54 +161,61 @@ function Checkout() {
                             throw new Error(verifyData.message || "Payment verification failed");
                         }
 
-                        setMessage("Payment successful! Your order is confirmed.");
-                        navigate("/");
+                        orderSuccess();
                     } catch (error) {
                         setMessage(error.message);
+                        setLoading(false);
                     }
                 },
-                prefill: {
-                    name: formData.name,
-                    email: formData.email,
-                    contact: formData.phone
-                },
-                theme: { color: "#2563eb" }
+                modal: {
+                    ondismiss: () => setLoading(false)
+                }
             };
 
             const razorpay = new window.Razorpay(options);
             razorpay.open();
         } catch (error) {
             setMessage(error.message);
+            setLoading(false);
         }
     }
 
     async function handleSubmit(e) {
         e.preventDefault();
+        setMessage("");
 
-        if (cart.length === 0) {
-            setMessage("Your cart is empty.");
+        if (selectedItems.length === 0) {
+            setMessage("Please select products from your cart.");
+            return;
+        }
+
+        if (!user) {
+            setMessage("Please login first");
             return;
         }
 
         setLoading(true);
-        setMessage("");
 
         if (paymentMethod === "COD") {
             await handleCOD();
         } else {
             await handleRazorpay();
         }
-
-        setLoading(false);
     }
 
-    if (cart.length === 0) {
+    const validItems = selectedItems.length > 0 && selectedItems.every((item) =>
+        cart.some((cartItem) => cartItem._id === item._id)
+    );
+
+    if (!validItems) {
         return (
             <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-5 text-center">
                 <ShoppingBag size={65} className="text-gray-300" />
-                <h2 className="mt-5 text-2xl font-bold text-blue-950">Your Cart is Empty</h2>
-                <p className="mt-2 text-gray-500">Add some products before checkout.</p>
-                <Link to="/products" className="mt-6 rounded-lg bg-blue-700 px-6 py-3 font-semibold text-white hover:bg-blue-800">Explore Products</Link>
+                <h2 className="mt-5 text-2xl font-bold text-blue-950">No Products Selected</h2>
+                <p className="mt-2 text-gray-500">Please select products from your cart.</p>
+                <Link to="/cart" className="mt-6 rounded-lg bg-blue-700 px-6 py-3 font-semibold text-white hover:bg-blue-800">
+                    Back to Cart
+                </Link>
             </div>
         );
     }
@@ -186,12 +236,12 @@ function Checkout() {
 
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <input name="name" value={formData.name} onChange={handleChange} placeholder="Full Name" required className="rounded-lg border p-3 outline-none focus:border-blue-600" />
-                                <input name="phone" type="tel" value={formData.phone} onChange={handleChange} placeholder="Phone Number" pattern="[0-9]{10}" title="Enter a 10-digit phone number" required className="rounded-lg border p-3 outline-none focus:border-blue-600" />
+                                <input name="phone" type="tel" value={formData.phone} onChange={handleChange} placeholder="Phone Number" pattern="[0-9]{10}" required className="rounded-lg border p-3 outline-none focus:border-blue-600" />
                                 <input name="email" type="email" value={formData.email} onChange={handleChange} placeholder="Email Address" required className="rounded-lg border p-3 outline-none focus:border-blue-600 sm:col-span-2" />
                                 <textarea name="address" value={formData.address} onChange={handleChange} placeholder="House No, Street, Area" required rows="3" className="rounded-lg border p-3 outline-none focus:border-blue-600 sm:col-span-2"></textarea>
                                 <input name="city" value={formData.city} onChange={handleChange} placeholder="City" required className="rounded-lg border p-3 outline-none focus:border-blue-600" />
                                 <input name="state" value={formData.state} onChange={handleChange} placeholder="State" required className="rounded-lg border p-3 outline-none focus:border-blue-600" />
-                                <input name="pincode" value={formData.pincode} onChange={handleChange} placeholder="PIN Code" pattern="[0-9]{6}" title="Enter a 6-digit PIN code" required className="rounded-lg border p-3 outline-none focus:border-blue-600" />
+                                <input name="pincode" value={formData.pincode} onChange={handleChange} placeholder="PIN Code" pattern="[0-9]{6}" required className="rounded-lg border p-3 outline-none focus:border-blue-600" />
                             </div>
                         </div>
 
@@ -202,7 +252,7 @@ function Checkout() {
                             </div>
 
                             <div className="space-y-4">
-                                <label className={`flex cursor-pointer items-center gap-4 rounded-xl border p-4 ${paymentMethod === "COD" ? "border-blue-600 bg-blue-50" : "border-gray-200"}`}>
+                                <label className="flex cursor-pointer items-center gap-4 rounded-xl border p-4">
                                     <input type="radio" name="payment" value="COD" checked={paymentMethod === "COD"} onChange={(e) => setPaymentMethod(e.target.value)} />
                                     <Truck className="text-blue-700" size={25} />
                                     <div>
@@ -211,7 +261,7 @@ function Checkout() {
                                     </div>
                                 </label>
 
-                                <label className={`flex cursor-pointer items-center gap-4 rounded-xl border p-4 ${paymentMethod === "Razorpay" ? "border-blue-600 bg-blue-50" : "border-gray-200"}`}>
+                                <label className="flex cursor-pointer items-center gap-4 rounded-xl border p-4">
                                     <input type="radio" name="payment" value="Razorpay" checked={paymentMethod === "Razorpay"} onChange={(e) => setPaymentMethod(e.target.value)} />
                                     <CreditCard className="text-blue-700" size={25} />
                                     <div>
@@ -227,7 +277,7 @@ function Checkout() {
                         <h2 className="mb-6 text-xl font-bold text-blue-950">Order Summary</h2>
 
                         <div className="max-h-72 space-y-4 overflow-y-auto">
-                            {cart.map((item) => (
+                            {selectedItems.map((item) => (
                                 <div key={item._id} className="flex gap-3">
                                     <img src={item.images?.[0] || item.image || "https://placehold.co/100x100?text=Product"} alt={item.name} className="h-16 w-16 rounded-lg object-cover" />
                                     <div className="flex-1">
@@ -256,9 +306,11 @@ function Checkout() {
                             </div>
                         </div>
 
-                        {message && <p className="mt-4 rounded-lg bg-blue-50 p-3 text-sm text-blue-700">{message}</p>}
+                        {message && (
+                            <p className="mt-4 rounded-lg bg-blue-50 p-3 text-sm text-blue-700">{message}</p>
+                        )}
 
-                        <button type="submit" disabled={loading} className="mt-6 w-full rounded-lg bg-blue-700 py-3 font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60">
+                        <button type="submit" disabled={loading} className="mt-6 w-full rounded-lg bg-blue-700 py-3 font-bold text-white hover:bg-blue-800 disabled:opacity-60">
                             {loading ? "Please wait..." : paymentMethod === "COD" ? "Place Order" : "Pay Now"}
                         </button>
 
@@ -266,6 +318,19 @@ function Checkout() {
                     </div>
                 </form>
             </div>
+
+            {orderPlaced && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+                    <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-xl">
+                        <CheckCircle size={65} className="mx-auto text-green-600" />
+                        <h2 className="mt-4 text-2xl font-bold text-blue-950">Order Placed Successfully!</h2>
+                        <p className="mt-2 text-gray-500">Thank you for shopping with JD Hub.</p>
+                        <button type="button" onClick={() => navigate("/orders")} className="mt-6 w-full rounded-lg bg-blue-700 py-3 font-bold text-white hover:bg-blue-800">
+                            View My Orders
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

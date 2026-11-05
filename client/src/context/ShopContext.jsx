@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect } from "react";
 
 const ShopContext = createContext();
@@ -9,7 +8,8 @@ export function ShopProvider({ children }) {
     });
 
     const [cart, setCart] = useState(() => {
-        return JSON.parse(localStorage.getItem("cart")) || [];
+        const savedCart = JSON.parse(localStorage.getItem("cart")) || [];
+        return savedCart.filter((item) => item._id && /^[0-9a-fA-F]{24}$/.test(item._id));
     });
 
     useEffect(() => {
@@ -21,9 +21,8 @@ export function ShopProvider({ children }) {
     }, [cart]);
 
     const addToWishlist = (product) => {
-        const alreadyExists = wishlist.some((item) => item._id === product._id);
-
-        if (!alreadyExists) {
+        const exists = wishlist.some((item) => item._id === product._id);
+        if (!exists) {
             setWishlist([...wishlist, product]);
         }
     };
@@ -33,10 +32,16 @@ export function ShopProvider({ children }) {
     };
 
     const addToCart = (product, quantity = 1) => {
-        const existingProduct = cart.find((item) => item._id === product._id);
+        if (!product._id || !/^[0-9a-fA-F]{24}$/.test(product._id)) return;
 
-        if (existingProduct) {
-            setCart(cart.map((item) => item._id === product._id ? { ...item, quantity: item.quantity + quantity } : item));
+        const exists = cart.find((item) => item._id === product._id);
+
+        if (exists) {
+            setCart(cart.map((item) =>
+                item._id === product._id
+                    ? { ...item, quantity: item.quantity + quantity }
+                    : item
+            ));
         } else {
             setCart([...cart, { ...product, quantity }]);
         }
@@ -49,11 +54,32 @@ export function ShopProvider({ children }) {
     const updateQuantity = (id, quantity) => {
         if (quantity < 1) return;
 
-        setCart(cart.map((item) => item._id === id ? { ...item, quantity } : item));
+        setCart(cart.map((item) =>
+            item._id === id ? { ...item, quantity } : item
+        ));
+    };
+
+    // Remove only the products that were ordered
+    const removeOrderedItems = (ids) => {
+        setCart(cart.filter((item) => !ids.includes(item._id)));
+    };
+
+    const clearCart = () => {
+        setCart([]);
     };
 
     return (
-        <ShopContext.Provider value={{ wishlist, cart, addToWishlist, removeFromWishlist, addToCart, removeFromCart, updateQuantity }}>
+        <ShopContext.Provider value={{
+            wishlist,
+            cart,
+            addToWishlist,
+            removeFromWishlist,
+            addToCart,
+            removeFromCart,
+            updateQuantity,
+            removeOrderedItems,
+            clearCart
+        }}>
             {children}
         </ShopContext.Provider>
     );
