@@ -22,8 +22,6 @@ import Orders from './pages/account/Orders'
 import OrderDetails from './pages/account/OrderDetails'
 import Notifications from './pages/account/Notifications'
 import HelpSupport from './pages/account/HelpSupport'
-import AdminDashboard from './pages/admin/AdminDashboard'
-import AdminRoute from "./pages/admin/AdminRoute";
 import Unauthorized from './pages/Unauthorized'
 import { useAuth } from './context/AuthContext'
 
@@ -176,13 +174,6 @@ function App() {
                             <Footer />
                         </>
                     </ProtectedRoute>
-                } />
-
-                {/* Admin Dashboard */}
-                <Route path="/admin" element={
-                    <AdminRoute>
-                        <AdminDashboard />
-                    </AdminRoute>
                 } />
 
                 {/* Unauthorized */}
