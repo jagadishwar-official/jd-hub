@@ -1,24 +1,25 @@
 const express = require("express");
-
 const Order = require("../models/Order");
 const Product = require("../models/Product");
 const verifyUser = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-// Get My Orders
+// Get logged-in user's orders
 router.get("/", verifyUser, async (req, res) => {
     try {
         const orders = await Order.find({
             userId: req.user._id
-        }).sort({ createdAt: -1 });
+        })
+            .populate("items.productId", "name images price")
+            .sort({ createdAt: -1 });
 
         res.status(200).json({
             success: true,
             orders
         });
-
     } catch (error) {
+        console.log("Get Orders Error:", error.message);
         res.status(500).json({
             success: false,
             message: "Unable to get orders"
@@ -26,7 +27,7 @@ router.get("/", verifyUser, async (req, res) => {
     }
 });
 
-// Place COD Order
+// Place COD order
 router.post("/", verifyUser, async (req, res) => {
     try {
         const { customer, items } = req.body;
@@ -82,7 +83,7 @@ router.post("/", verifyUser, async (req, res) => {
             status: "placed"
         });
 
-        // Update product stock
+        // Reduce stock after placing the order
         for (const item of orderItems) {
             await Product.findByIdAndUpdate(item.productId, {
                 $inc: { stock: -item.quantity }
@@ -94,10 +95,8 @@ router.post("/", verifyUser, async (req, res) => {
             message: "Order placed successfully",
             order
         });
-
     } catch (error) {
         console.log("Order Error:", error.message);
-
         res.status(500).json({
             success: false,
             message: "Unable to place order"
