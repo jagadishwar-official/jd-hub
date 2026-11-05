@@ -1,4 +1,3 @@
-
 const express = require("express");
 
 const Order = require("../models/Order");
@@ -6,6 +5,26 @@ const Product = require("../models/Product");
 const verifyUser = require("../middleware/authMiddleware");
 
 const router = express.Router();
+
+// Get My Orders
+router.get("/", verifyUser, async (req, res) => {
+    try {
+        const orders = await Order.find({
+            userId: req.user._id
+        }).sort({ createdAt: -1 });
+
+        res.status(200).json({
+            success: true,
+            orders
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Unable to get orders"
+        });
+    }
+});
 
 // Place COD Order
 router.post("/", verifyUser, async (req, res) => {
