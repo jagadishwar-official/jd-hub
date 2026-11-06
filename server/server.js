@@ -21,7 +21,8 @@ app.use(cors({
     origin: [
         "http://localhost:5173",
         "http://localhost:5174",
-        "https://jd-hub.vercel.app"
+        "https://jd-hub.vercel.app",
+        "https://jd-k4wh8x9rq-3d-webiner.vercel.app"
     ]
 }));
 
